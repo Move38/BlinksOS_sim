@@ -36,6 +36,8 @@ bool programInitiator = false;
 #define MENU_TIMEOUT_DURATION    5000
 #define SLEEP_TIMEOUT_DURATION  60000
 
+#define SLEEP_OPTION_DELAY 3000
+
 Timer idleTimer;
 Timer menuIdleTimer;
 Timer progTimer;
@@ -44,6 +46,8 @@ Timer readyTimer;
 Timer wakeDelayTimer;
 Timer wakeDurationTimer;
 Timer sleepDelayTimer;
+
+Timer sleepOptionTimer;
 
 void setup() {
   // put your setup code here, to run once:
@@ -156,6 +160,7 @@ void gameLoop() {
     if (isAlone()) {
       blinkState = MENU;
       menuIdleTimer.set(MENU_TIMEOUT_DURATION);
+      sleepOptionTimer.set(SLEEP_OPTION_DELAY); // if the button continues being held down, this will eventually let you enter sleep mode
     }
   }
 
@@ -185,35 +190,37 @@ void gameLoop() {
 }
 
 void menuLoop() {
-  if (buttonSingleClicked()) {
-    menuState = ( menuState + 1 ) % NUM_MENU_OPTIONS;
+  // button cleanup
+  buttonSingleClicked();
+  buttonDoubleClicked();
+
+  if ( !sleepOptionTimer.isExpired() ) {
+    // check to see if the button is still down, if so, we're golden
+    menuState = MENU_PROG;
     menuIdleTimer.set(MENU_TIMEOUT_DURATION);
-  }
 
-  if (buttonDoubleClicked()) { //type selected, move to appropriate mode
-
-    menuIdleTimer.set(MENU_TIMEOUT_DURATION);
-
-    if (menuState == MENU_PROG) {//head to the correct programming mode
+    if (!buttonDown()) {
+      // released button during program duration
       blinkState = programType;
       programInitiator = true;
       progTimer.set(PROG_DURATION);
     }
-    else if (menuState == MENU_SLEEP) {
+  }
+  else {
+    if (buttonDown()) {
+      menuState = MENU_SLEEP;
+      menuIdleTimer.set(MENU_TIMEOUT_DURATION);
+    }
+    else {
       blinkState = YAWN;
     }
-  }
-
-  if (menuIdleTimer.isExpired()) {
-    blinkState = currentGame;
   }
 }
 
 void programLoop() {
 
-  if (buttonDoubleClicked()) {//return to menu if double clicked
-    blinkState = MENU;
-    menuIdleTimer.set(MENU_TIMEOUT_DURATION);
+  if (buttonDoubleClicked()) {//return to game if double clicked
+    blinkState = currentGame;
     programInitiator = false;
   }
   // button cleanup
